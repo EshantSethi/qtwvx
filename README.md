@@ -57,7 +57,9 @@ frontend/
     components/    Controls, GenerationChart, StatCards, HorizonChart
   Dockerfile, nginx.conf
 api/index.py       Vercel serverless entrypoint (wraps the FastAPI app)
-scripts/fetch_data.py
+scripts/
+  fetch_data.py  download the January data into backend/data/
+  summary.py     print the headline error numbers
 docker-compose.yml
 vercel.json
 ```
@@ -72,14 +74,17 @@ vercel.json
 
 ## Running it
 
-**1. Get the data (needs internet, run once)**
+**1. Install and (optionally) pre-download the data**
 
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cd .. && python scripts/fetch_data.py
+cd .. && python scripts/fetch_data.py   # saves backend/data/*.csv
+python scripts/summary.py               # prints the January numbers shown above
 ```
+
+If the CSVs aren't there, the backend downloads them from Elexon on the first request (takes a few seconds) and caches them.
 
 **2a. With Docker**
 
@@ -107,10 +112,19 @@ cd backend && pytest
 
 ## Deploying (Vercel)
 
-`vercel.json` builds the React app from `frontend/` and serves the FastAPI app as a Python function at `/api/*`. Commit the CSVs in `backend/data/` first: the function can't write to disk, so it needs the data bundled. Then import the repo in Vercel, or run `vercel --prod`.
+`vercel.json` builds the React app from `frontend/` and serves the FastAPI app as a Python function at `/api/*`. Import the repo in Vercel (no extra settings needed), or run `vercel --prod`.
 
-## AI tools
+Committing `backend/data/*.csv` makes the first load faster. Without them the function downloads the month from Elexon into `/tmp` on a cold start.
 
-I used Claude (Anthropic) as a coding assistant. It wrote most of the backend, frontend, and Docker/Vercel setup.
+## Limitations / next steps
 
-TODO (Eshant): replace this line with what you did yourself, e.g. reviewing the logic, running it against the real data, deploying, checking the numbers above.
+- Only national wind is covered. Solar and demand forecasts would give the full net-position picture.
+- The large positive bias needs a proper check against curtailment data (e.g. BOALF bid acceptances) before anyone corrects for it.
+- The 11:00 gate is hard-coded for winter (UTC = UK time). Summer would need a BST offset.
+- Next useful feature: a "buy recommendation" that takes the day-ahead forecast, subtracts a chosen percentile of historical over-forecast error, and shows the volume to cover with firm power.
+
+## Use of AI tools
+
+As the brief allows, I used Claude (Anthropic) as an AI coding assistant on this project. It wrote most of the code and config (FastAPI routes, React components, Docker and Vercel setup) from my prompts.
+
+What I did myself: TODO (Eshant), list only what's true, e.g. "ran it against the live Elexon data and checked the numbers in this README, deployed it to Vercel, reviewed the forecast-selection logic".
